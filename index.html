@@ -1,0 +1,2328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusLive — Real-Time Campus Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: rgba(255,255,255,0.07);
+    --text: #f0f0f8;
+    --muted: #7a7a9a;
+    --lab: #00e5ff;
+    --lab-dim: rgba(0,229,255,0.12);
+    --print: #ff9500;
+    --print-dim: rgba(255,149,0,0.12);
+    --lib: #7c3aed;
+    --lib-dim: rgba(124,58,237,0.12);
+    --canteen: #10b981;
+    --canteen-dim: rgba(16,185,129,0.12);
+    --faculty: #f43f5e;
+    --faculty-dim: rgba(244,63,94,0.12);
+    --free: #10b981;
+    --busy: #f59e0b;
+    --full: #ef4444;
+    --unknown: #6b7280;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,229,255,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(124,58,237,0.05) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 50% 50%, rgba(16,185,129,0.03) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ===== HEADER ===== */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+  }
+
+  .header-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    gap: 16px;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+  }
+
+  .logo-icon {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, var(--lab), var(--lib));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+  }
+
+  .logo span { color: var(--lab); }
+
+  .header-live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--free);
+    font-weight: 500;
+  }
+
+  .live-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--free);
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    text-decoration: none;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--lab), #0088cc);
+    color: #000;
+    font-weight: 600;
+  }
+
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0,229,255,0.3); }
+
+  /* ===== NAV TABS ===== */
+  .nav-tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs::-webkit-scrollbar { display: none; }
+
+  .nav-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    gap: 4px;
+  }
+
+  .nav-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .nav-tab:hover { color: var(--text); }
+
+  .nav-tab.active { color: var(--text); border-bottom-color: var(--lab); }
+
+  .nav-tab .tab-icon { font-size: 1rem; }
+
+  .tab-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ===== SECTIONS ===== */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ===== OVERVIEW HERO ===== */
+  .overview-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .hero-card {
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .hero-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  .hero-card:hover { transform: translateY(-3px); }
+  .hero-card:hover::before { opacity: 1; }
+
+  .hero-card.lab { background: var(--lab-dim); }
+  .hero-card.lab::before { background: radial-gradient(circle at 50% 0%, rgba(0,229,255,0.1), transparent 70%); }
+  .hero-card.print { background: var(--print-dim); }
+  .hero-card.print::before { background: radial-gradient(circle at 50% 0%, rgba(255,149,0,0.1), transparent 70%); }
+  .hero-card.lib { background: var(--lib-dim); }
+  .hero-card.lib::before { background: radial-gradient(circle at 50% 0%, rgba(124,58,237,0.1), transparent 70%); }
+  .hero-card.canteen { background: var(--canteen-dim); }
+  .hero-card.canteen::before { background: radial-gradient(circle at 50% 0%, rgba(16,185,129,0.1), transparent 70%); }
+  .hero-card.faculty { background: var(--faculty-dim); }
+  .hero-card.faculty::before { background: radial-gradient(circle at 50% 0%, rgba(244,63,94,0.1), transparent 70%); }
+
+  .hero-icon { font-size: 1.8rem; margin-bottom: 12px; }
+
+  .hero-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .hero-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .hero-sub { font-size: 0.78rem; color: var(--muted); }
+
+  .hero-card.lab .hero-value { color: var(--lab); }
+  .hero-card.print .hero-value { color: var(--print); }
+  .hero-card.lib .hero-value { color: var(--lib); }
+  .hero-card.canteen .hero-value { color: var(--canteen); }
+  .hero-card.faculty .hero-value { color: var(--faculty); }
+
+  /* ===== GRID LAYOUTS ===== */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .sidebar-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+  /* ===== CARDS ===== */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-body { padding: 20px; }
+
+  /* ===== STATUS BADGE ===== */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  .status-badge.free { background: rgba(16,185,129,0.15); color: var(--free); }
+  .status-badge.busy { background: rgba(245,158,11,0.15); color: var(--busy); }
+  .status-badge.full { background: rgba(239,68,68,0.15); color: var(--full); }
+  .status-badge.unknown { background: rgba(107,114,128,0.15); color: var(--unknown); }
+  .status-badge.offline { background: rgba(239,68,68,0.15); color: var(--full); }
+  .status-badge.online { background: rgba(16,185,129,0.15); color: var(--free); }
+
+  .status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+
+  .free .status-dot { background: var(--free); }
+  .busy .status-dot { background: var(--busy); }
+  .full .status-dot { background: var(--full); }
+  .unknown .status-dot { background: var(--unknown); }
+
+  /* ===== LAB GRID ===== */
+  .lab-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+
+  .lab-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .lab-card:hover { border-color: var(--lab); transform: translateY(-2px); }
+
+  .lab-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .lab-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 2px;
+  }
+
+  .lab-location { font-size: 0.75rem; color: var(--muted); }
+
+  /* Seat grid visual */
+  .seat-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 3px;
+    margin: 10px 0;
+  }
+
+  .seat {
+    aspect-ratio: 1;
+    border-radius: 3px;
+    transition: background 0.3s;
+  }
+
+  .seat.taken { background: rgba(239,68,68,0.6); }
+  .seat.free { background: rgba(16,185,129,0.5); }
+  .seat.reserved { background: rgba(245,158,11,0.5); }
+
+  .lab-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.78rem;
+  }
+
+  .lab-count { font-weight: 600; }
+  .lab-count span { color: var(--lab); }
+
+  .lab-updated { color: var(--muted); font-size: 0.72rem; }
+
+  /* Occupancy bar */
+  .occ-bar {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .occ-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  /* ===== PRINTER CARDS ===== */
+  .printer-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .printer-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .printer-item:hover { border-color: var(--print); }
+
+  .printer-icon-wrap {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: var(--print-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+    flex-shrink: 0;
+  }
+
+  .printer-info { flex: 1; }
+  .printer-name { font-weight: 600; font-size: 0.88rem; margin-bottom: 2px; }
+  .printer-loc { font-size: 0.75rem; color: var(--muted); }
+
+  .printer-queue {
+    text-align: right;
+  }
+
+  .queue-count {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: var(--print);
+  }
+
+  .queue-label { font-size: 0.7rem; color: var(--muted); }
+
+  .wait-bar {
+    width: 80px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+    margin-left: auto;
+  }
+
+  .wait-fill {
+    height: 100%;
+    background: var(--print);
+    border-radius: 2px;
+  }
+
+  /* ===== LIBRARY ===== */
+  .floor-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+  }
+
+  .floor-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .floor-btn.active, .floor-btn:hover {
+    background: var(--lib-dim);
+    color: var(--lib);
+    border-color: rgba(124,58,237,0.3);
+  }
+
+  .zone-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .zone-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .zone-card:hover { border-color: var(--lib); }
+
+  .zone-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .zone-name {
+    font-weight: 600;
+    font-size: 0.88rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .zone-occupancy {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--lib);
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .zone-capacity { font-size: 0.75rem; color: var(--muted); }
+
+  .noise-level {
+    display: flex;
+    gap: 3px;
+    margin-top: 8px;
+  }
+
+  .noise-bar {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+  }
+
+  .noise-bar.active { background: var(--lib); }
+
+  /* ===== CANTEEN ===== */
+  .canteen-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .crowd-meter {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    text-align: center;
+  }
+
+  .crowd-ring {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 12px;
+    position: relative;
+  }
+
+  .crowd-ring svg { transform: rotate(-90deg); }
+  .crowd-ring-track { fill: none; stroke: var(--border); stroke-width: 8; }
+  .crowd-ring-fill {
+    fill: none;
+    stroke-width: 8;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 1s ease;
+  }
+
+  .crowd-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+  }
+
+  .crowd-pct { font-size: 1.3rem; }
+  .crowd-sub { font-size: 0.6rem; color: var(--muted); font-family: 'DM Sans'; }
+
+  .crowd-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+  .crowd-desc { font-size: 0.75rem; color: var(--muted); }
+
+  .counter-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .counter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .counter-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .counter-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+  .counter-wait { font-size: 0.78rem; color: var(--muted); }
+
+  /* Menu items */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .menu-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .menu-item:hover { border-color: var(--canteen); }
+  .menu-emoji { font-size: 1.8rem; margin-bottom: 6px; }
+  .menu-name { font-size: 0.78rem; font-weight: 500; margin-bottom: 2px; }
+  .menu-price { font-size: 0.72rem; color: var(--canteen); font-weight: 600; }
+
+  /* Rating stars */
+  .stars { color: #f59e0b; font-size: 0.75rem; margin-top: 4px; }
+
+  /* Canteen timeline chart */
+  .timeline-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 60px;
+    margin-top: 10px;
+  }
+
+  .timeline-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    justify-content: flex-end;
+  }
+
+  .timeline-bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.5s ease;
+    min-height: 4px;
+  }
+
+  .timeline-hour { font-size: 0.55rem; color: var(--muted); }
+
+  /* ===== FACULTY ===== */
+  .faculty-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .faculty-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .faculty-card:hover { border-color: var(--faculty); transform: translateY(-2px); }
+
+  .faculty-top {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .faculty-avatar {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    flex-shrink: 0;
+    color: #fff;
+  }
+
+  .faculty-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+  .faculty-dept { font-size: 0.75rem; color: var(--muted); }
+
+  .faculty-status-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 0.78rem;
+  }
+
+  .faculty-cabin { color: var(--muted); font-size: 0.72rem; }
+  .faculty-time { color: var(--muted); font-size: 0.72rem; }
+
+  /* ===== CAMPUS MAP ===== */
+  .map-container {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .map-svg-wrap {
+    width: 100%;
+    min-height: 420px;
+    position: relative;
+    overflow: hidden;
+    background:
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .map-building {
+    position: absolute;
+    border-radius: 8px;
+    border: 2px solid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.25s;
+    padding: 8px;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .map-building:hover { transform: scale(1.05); z-index: 10; }
+  .map-building .b-icon { font-size: 1.4rem; margin-bottom: 4px; }
+  .map-building .b-name { line-height: 1.2; }
+  .map-building .b-status { font-size: 0.65rem; margin-top: 3px; opacity: 0.8; }
+
+  .map-road {
+    position: absolute;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+  }
+
+  .map-controls {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .map-ctrl-btn {
+    width: 32px; height: 32px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    color: var(--text);
+  }
+
+  .map-ctrl-btn:hover { background: var(--surface2); border-color: var(--lab); }
+
+  .map-legend {
+    display: flex;
+    gap: 14px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 3px;
+  }
+
+  /* ===== REPORT MODAL ===== */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    width: 100%;
+    max-width: 460px;
+    overflow: hidden;
+    animation: modal-in 0.25s ease;
+  }
+
+  @keyframes modal-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .modal-title { font-family: 'Syne', sans-serif; font-weight: 700; }
+  .modal-close {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: var(--surface2);
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover { color: var(--text); background: var(--border); }
+  .modal-body { padding: 20px; }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .form-select, .form-input, .form-textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    transition: border-color 0.2s;
+    outline: none;
+    appearance: none;
+  }
+
+  .form-select:focus, .form-input:focus, .form-textarea:focus {
+    border-color: var(--lab);
+  }
+
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .crowd-slider-wrap { position: relative; }
+
+  .crowd-slider {
+    width: 100%;
+    appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    outline: none;
+    cursor: pointer;
+  }
+
+  .crowd-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--lab);
+    cursor: pointer;
+    box-shadow: 0 0 0 4px rgba(0,229,255,0.15);
+  }
+
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ===== NOTIFICATIONS ===== */
+  .notif-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .notif-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid;
+    align-items: flex-start;
+    animation: notif-in 0.3s ease;
+  }
+
+  @keyframes notif-in {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .notif-item.info { border-color: var(--lab); }
+  .notif-item.warn { border-color: var(--busy); }
+  .notif-item.danger { border-color: var(--full); }
+  .notif-item.success { border-color: var(--free); }
+
+  .notif-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  .notif-content { flex: 1; }
+  .notif-title { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
+  .notif-body { font-size: 0.75rem; color: var(--muted); }
+  .notif-time { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+
+  /* ===== LEADERBOARD ===== */
+  .leaderboard { display: flex; flex-direction: column; gap: 8px; }
+
+  .lb-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--surface2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+  }
+
+  .lb-rank {
+    width: 24px;
+    text-align: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+  }
+
+  .lb-rank.gold { color: #f59e0b; }
+  .lb-rank.silver { color: #94a3b8; }
+  .lb-rank.bronze { color: #cd7c39; }
+
+  .lb-avatar {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .lb-name { flex: 1; font-size: 0.85rem; font-weight: 500; }
+  .lb-badge { font-size: 0.65rem; color: var(--muted); }
+
+  .lb-points {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--lab);
+  }
+
+  /* ===== SEARCH BAR ===== */
+  .search-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    transition: border-color 0.2s;
+  }
+
+  .search-bar:focus-within { border-color: var(--lab); }
+  .search-bar input { background: none; border: none; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 0.88rem; flex: 1; outline: none; }
+  .search-bar input::placeholder { color: var(--muted); }
+  .search-icon { color: var(--muted); font-size: 1rem; }
+
+  /* ===== FILTERS ===== */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .filter-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .filter-chip.active, .filter-chip:hover {
+    background: var(--lab-dim);
+    color: var(--lab);
+    border-color: rgba(0,229,255,0.3);
+  }
+
+  /* ===== SECTION TITLE ===== */
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-sub {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+  }
+
+  /* ===== TOAST ===== */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    min-width: 260px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: toast-in 0.3s ease;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .toast.removing { animation: toast-out 0.3s ease forwards; }
+
+  @keyframes toast-out {
+    to { opacity: 0; transform: translateX(20px); }
+  }
+
+  /* ===== SECTION: ANALYTICS ===== */
+  .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .analytics-metric {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+
+  .analytics-metric-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .analytics-metric-label { font-size: 0.75rem; color: var(--muted); }
+
+  /* Bar chart */
+  .bar-chart { display: flex; gap: 6px; align-items: flex-end; height: 100px; }
+
+  .bar-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+
+  .bar-fill {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    transition: height 0.5s ease;
+    min-height: 4px;
+  }
+
+  .bar-lbl { font-size: 0.6rem; color: var(--muted); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1100px) {
+    .overview-hero { grid-template-columns: repeat(3, 1fr); }
+    .sidebar-layout { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 768px) {
+    .main { padding: 16px; }
+    .overview-hero { grid-template-columns: repeat(2, 1fr); }
+    .two-col, .three-col { grid-template-columns: 1fr; }
+    .canteen-hero { grid-template-columns: 1fr; }
+    .zone-grid { grid-template-columns: 1fr; }
+    .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+    .header-inner { gap: 10px; }
+    .logo-text { display: none; }
+  }
+
+  @media (max-width: 480px) {
+    .overview-hero { grid-template-columns: 1fr 1fr; }
+    .analytics-grid { grid-template-columns: 1fr 1fr; }
+    .hero-value { font-size: 1.4rem; }
+    .header-actions .btn span { display: none; }
+  }
+
+  /* ===== UTILITY ===== */
+  .mb-4 { margin-bottom: 16px; }
+  .mb-5 { margin-bottom: 20px; }
+  .mt-4 { margin-top: 16px; }
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .gap-2 { gap: 8px; }
+  .text-muted { color: var(--muted); }
+  .text-sm { font-size: 0.82rem; }
+  .font-bold { font-weight: 700; }
+  .w-full { width: 100%; }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🏛️</div>
+      <span class="logo-text">Campus<span>Live</span></span>
+    </div>
+    <div class="header-live">
+      <div class="live-dot"></div>
+      <span>Live Updates</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="openModal()">
+        <span>📢</span>
+        <span>Report</span>
+      </button>
+      <button class="btn btn-primary" onclick="showToast('🔔 Notifications enabled!', 'success')">
+        <span>🔔</span>
+        <span>Alerts</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- NAV TABS -->
+<nav class="nav-tabs">
+  <div class="nav-inner">
+    <button class="nav-tab active" onclick="showSection('overview', this)">
+      <span class="tab-icon">🏠</span> Overview
+    </button>
+    <button class="nav-tab" onclick="showSection('labs', this)">
+      <span class="tab-icon">🔬</span> Labs
+      <span class="tab-badge" style="background:rgba(0,229,255,0.15);color:var(--lab)">4 Free</span>
+    </button>
+    <button class="nav-tab" onclick="showSection('printers', this)">
+      <span class="tab-icon">🖨️</span> Printers
+      <span class="tab-badge" style="background:rgba(255,149,0,0.15);color:var(--print)">2 Online</span>
+    </button>
+    <button class="nav-tab" onclick="showSection('library', this)">
+      <span class="tab-icon">📚</span> Library
+    </button>
+    <button class="nav-tab" onclick="showSection('canteen', this)">
+      <span class="tab-icon">🍽️</span> Canteen
+    </button>
+    <button class="nav-tab" onclick="showSection('faculty', this)">
+      <span class="tab-icon">👨‍🏫</span> Faculty
+    </button>
+    <button class="nav-tab" onclick="showSection('map', this)">
+      <span class="tab-icon">🗺️</span> Campus Map
+    </button>
+    <button class="nav-tab" onclick="showSection('analytics', this)">
+      <span class="tab-icon">📊</span> Analytics
+    </button>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- ===== OVERVIEW ===== -->
+  <section id="overview" class="section active">
+    <div class="overview-hero">
+      <div class="hero-card lab" onclick="showSection('labs', document.querySelector('[onclick*=labs]'))">
+        <div class="hero-icon">🔬</div>
+        <div class="hero-label">Computer Labs</div>
+        <div class="hero-value" id="lab-free-count">4</div>
+        <div class="hero-sub">labs available right now</div>
+      </div>
+      <div class="hero-card print" onclick="showSection('printers', document.querySelectorAll('.nav-tab')[2])">
+        <div class="hero-icon">🖨️</div>
+        <div class="hero-label">Printers</div>
+        <div class="hero-value">2</div>
+        <div class="hero-sub">online • ~8 min wait</div>
+      </div>
+      <div class="hero-card lib" onclick="showSection('library', document.querySelectorAll('.nav-tab')[3])">
+        <div class="hero-icon">📚</div>
+        <div class="hero-label">Library Seats</div>
+        <div class="hero-value" id="lib-count">142</div>
+        <div class="hero-sub">of 280 seats free</div>
+      </div>
+      <div class="hero-card canteen" onclick="showSection('canteen', document.querySelectorAll('.nav-tab')[4])">
+        <div class="hero-icon">🍽️</div>
+        <div class="hero-label">Canteen</div>
+        <div class="hero-value">~5m</div>
+        <div class="hero-sub">moderate crowd</div>
+      </div>
+      <div class="hero-card faculty" onclick="showSection('faculty', document.querySelectorAll('.nav-tab')[5])">
+        <div class="hero-icon">👨‍🏫</div>
+        <div class="hero-label">Faculty</div>
+        <div class="hero-value" id="fac-avail">8</div>
+        <div class="hero-sub">available in cabin</div>
+      </div>
+    </div>
+
+    <div class="sidebar-layout">
+      <!-- Left: Quick status -->
+      <div>
+        <div class="card mb-5">
+          <div class="card-header">
+            <div class="card-title">⚡ Live Activity Feed</div>
+            <span class="text-sm text-muted">auto-updating</span>
+          </div>
+          <div class="card-body">
+            <div class="notif-list" id="activity-feed">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔎 Quick Find</div>
+          </div>
+          <div class="card-body">
+            <div class="search-bar">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="Search labs, printers, faculty..." oninput="quickSearch(this.value)">
+            </div>
+            <div id="quick-results"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right sidebar -->
+      <div>
+        <div class="card mb-5">
+          <div class="card-header">
+            <div class="card-title">🏆 Top Contributors</div>
+          </div>
+          <div class="card-body" style="padding:14px">
+            <div class="leaderboard" id="leaderboard"><!-- JS --></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🔔 Your Alerts</div>
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:0.72rem" onclick="addAlert()">+ Add</button>
+          </div>
+          <div class="card-body">
+            <div id="alert-list">
+              <div class="notif-item success">
+                <div class="notif-icon">✅</div>
+                <div class="notif-content">
+                  <div class="notif-title">Lab C Free</div>
+                  <div class="notif-body">Notify when Lab C drops below 50%</div>
+                </div>
+              </div>
+              <div class="notif-item info" style="margin-top:8px">
+                <div class="notif-icon">🖨️</div>
+                <div class="notif-content">
+                  <div class="notif-title">Printer 2 Online</div>
+                  <div class="notif-body">Alert when CSE block printer is ready</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LABS ===== -->
+  <section id="labs" class="section">
+    <div class="section-title">🔬 Computer Labs</div>
+    <div class="section-sub">Real-time seat availability across all campus labs</div>
+
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterLabs('all', this)">All Labs</button>
+      <button class="filter-chip" onclick="filterLabs('free', this)">🟢 Free</button>
+      <button class="filter-chip" onclick="filterLabs('busy', this)">🟡 Busy</button>
+      <button class="filter-chip" onclick="filterLabs('full', this)">🔴 Full</button>
+      <button class="filter-chip" onclick="filterLabs('cse', this)">CSE Block</button>
+      <button class="filter-chip" onclick="filterLabs('it', this)">IT Block</button>
+    </div>
+
+    <div class="lab-grid" id="lab-grid"><!-- Populated by JS --></div>
+  </section>
+
+  <!-- ===== PRINTERS ===== -->
+  <section id="printers" class="section">
+    <div class="section-title">🖨️ Print Centers</div>
+    <div class="section-sub">Live queue status and printer availability</div>
+
+    <div class="two-col">
+      <div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📍 All Printers</div>
+            <span class="status-badge online"><span class="status-dot"></span>2 Online</span>
+          </div>
+          <div class="card-body">
+            <div class="printer-list" id="printer-list"><!-- JS --></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card mb-5">
+          <div class="card-header">
+            <div class="card-title">⏱️ Best Times to Print</div>
+          </div>
+          <div class="card-body">
+            <div class="bar-chart" id="print-time-chart"><!-- JS --></div>
+            <div style="font-size:0.72rem;color:var(--muted);margin-top:8px;">Average queue length by hour today</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">💡 Print Tips</div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="notif-item info">
+                <div class="notif-icon">⚡</div>
+                <div class="notif-content">
+                  <div class="notif-title">Shortest wait right now</div>
+                  <div class="notif-body">Library Printer — only 1 person ahead</div>
+                </div>
+              </div>
+              <div class="notif-item warn">
+                <div class="notif-icon">⚠️</div>
+                <div class="notif-content">
+                  <div class="notif-title">Peak hour approaching</div>
+                  <div class="notif-body">CSE Block printer gets busy after 12pm</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== LIBRARY ===== -->
+  <section id="library" class="section">
+    <div class="section-title">📚 Library</div>
+    <div class="section-sub">Seat availability, noise levels, and zone status</div>
+
+    <div class="floor-tabs">
+      <button class="floor-btn active" onclick="switchFloor(1, this)">Ground Floor</button>
+      <button class="floor-btn" onclick="switchFloor(2, this)">1st Floor</button>
+      <button class="floor-btn" onclick="switchFloor(3, this)">2nd Floor</button>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <div class="zone-grid" id="zone-grid"><!-- JS --></div>
+      </div>
+      <div>
+        <div class="card mb-5">
+          <div class="card-header">
+            <div class="card-title">📈 Occupancy Today</div>
+          </div>
+          <div class="card-body">
+            <div class="timeline-chart" id="lib-timeline"><!-- JS --></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">ℹ️ Facilities</div>
+          </div>
+          <div class="card-body">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="flex items-center justify-between text-sm">
+                <span>❄️ Air Conditioning</span>
+                <span class="status-badge free"><span class="status-dot"></span>Working</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span>🔌 Power Outlets</span>
+                <span class="status-badge busy"><span class="status-dot"></span>Some busy</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span>📶 WiFi</span>
+                <span class="status-badge free"><span class="status-dot"></span>Strong</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span>🖨️ Library Printer</span>
+                <span class="status-badge free"><span class="status-dot"></span>Online</span>
+              </div>
+              <div class="flex items-center justify-between text-sm">
+                <span>🔇 Noise Level</span>
+                <span class="status-badge free"><span class="status-dot"></span>Quiet</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CANTEEN ===== -->
+  <section id="canteen" class="section">
+    <div class="section-title">🍽️ Canteen</div>
+    <div class="section-sub">Live crowd level, wait times, and today's menu</div>
+
+    <div class="canteen-hero">
+      <div class="crowd-meter">
+        <div class="crowd-ring">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle class="crowd-ring-track" cx="50" cy="50" r="40"/>
+            <circle class="crowd-ring-fill" id="crowd-circle" cx="50" cy="50" r="40"
+              stroke="var(--canteen)"
+              stroke-dasharray="251.3"
+              stroke-dashoffset="150"/>
+          </svg>
+          <div class="crowd-label">
+            <div class="crowd-pct" id="crowd-pct" style="color:var(--canteen)">40%</div>
+            <div class="crowd-sub">CROWD</div>
+          </div>
+        </div>
+        <div class="crowd-title">Moderate</div>
+        <div class="crowd-desc">~5 min wait time</div>
+        <div style="margin-top:12px">
+          <div class="timeline-chart" id="canteen-timeline" style="height:50px"><!-- JS --></div>
+          <div style="font-size:0.65rem;color:var(--muted);text-align:center;margin-top:4px;">Crowd pattern today</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" style="height:100%">
+          <div class="card-header">
+            <div class="card-title">🏪 Counter Status</div>
+          </div>
+          <div class="card-body">
+            <div class="counter-list" id="counter-list"><!-- JS --></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🍛 Today's Menu</div>
+        <span class="text-sm text-muted">Crowdsourced · Updated 12m ago</span>
+      </div>
+      <div class="card-body">
+        <div class="menu-grid" id="menu-grid"><!-- JS --></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FACULTY ===== -->
+  <section id="faculty" class="section">
+    <div class="section-title">👨‍🏫 Faculty Availability</div>
+    <div class="section-sub">Check if your professor is in cabin before walking over</div>
+
+    <div class="search-bar mb-4">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="Search faculty by name or department..." oninput="searchFaculty(this.value)">
+    </div>
+
+    <div class="filter-row">
+      <button class="filter-chip active" onclick="filterFaculty('all', this)">All</button>
+      <button class="filter-chip" onclick="filterFaculty('available', this)">🟢 Available</button>
+      <button class="filter-chip" onclick="filterFaculty('in-class', this)">🔵 In Class</button>
+      <button class="filter-chip" onclick="filterFaculty('away', this)">⚫ Away</button>
+      <button class="filter-chip" onclick="filterFaculty('cse', this)">CSE Dept</button>
+      <button class="filter-chip" onclick="filterFaculty('it', this)">IT Dept</button>
+      <button class="filter-chip" onclick="filterFaculty('math', this)">Math Dept</button>
+    </div>
+
+    <div class="faculty-grid" id="faculty-grid"><!-- JS --></div>
+  </section>
+
+  <!-- ===== CAMPUS MAP ===== -->
+  <section id="map" class="section">
+    <div class="section-title">🗺️ Campus Map</div>
+    <div class="section-sub">Click any building to see live resource status</div>
+
+    <div class="map-container">
+      <div class="map-svg-wrap" id="campus-map">
+        <!-- Roads -->
+        <div class="map-road" style="left:50%;top:0;width:40px;height:100%;transform:translateX(-50%)"></div>
+        <div class="map-road" style="left:0;top:50%;width:100%;height:40px;transform:translateY(-50%)"></div>
+
+        <!-- Buildings -->
+        <div class="map-building" style="left:8%;top:8%;width:160px;height:100px;background:var(--lab-dim);border-color:var(--lab);color:var(--lab)" onclick="mapClick('CSE Block')">
+          <div class="b-icon">🔬</div>
+          <div class="b-name">CSE Block</div>
+          <div class="b-status">Lab A,B,C • Printer</div>
+        </div>
+
+        <div class="map-building" style="right:8%;top:8%;width:140px;height:90px;background:var(--lib-dim);border-color:var(--lib);color:var(--lib)" onclick="mapClick('Library')">
+          <div class="b-icon">📚</div>
+          <div class="b-name">Library</div>
+          <div class="b-status">142 seats free</div>
+        </div>
+
+        <div class="map-building" style="left:8%;bottom:10%;width:130px;height:90px;background:var(--canteen-dim);border-color:var(--canteen);color:var(--canteen)" onclick="mapClick('Main Canteen')">
+          <div class="b-icon">🍽️</div>
+          <div class="b-name">Main Canteen</div>
+          <div class="b-status">~40% crowd</div>
+        </div>
+
+        <div class="map-building" style="right:8%;bottom:10%;width:150px;height:90px;background:var(--print-dim);border-color:var(--print);color:var(--print)" onclick="mapClick('IT Block')">
+          <div class="b-icon">💻</div>
+          <div class="b-name">IT Block</div>
+          <div class="b-status">Lab D,E • Printer</div>
+        </div>
+
+        <div class="map-building" style="left:38%;top:12%;width:130px;height:80px;background:var(--faculty-dim);border-color:var(--faculty);color:var(--faculty)" onclick="mapClick('Admin Block')">
+          <div class="b-icon">🏛️</div>
+          <div class="b-name">Admin Block</div>
+          <div class="b-status">Faculty cabins</div>
+        </div>
+
+        <div class="map-building" style="left:38%;bottom:14%;width:130px;height:80px;background:rgba(168,85,247,0.1);border-color:#a855f7;color:#a855f7" onclick="mapClick('Auditorium')">
+          <div class="b-icon">🎭</div>
+          <div class="b-name">Auditorium</div>
+          <div class="b-status">No events today</div>
+        </div>
+
+        <div class="map-controls">
+          <div class="map-ctrl-btn" onclick="showToast('Zoom in coming soon!', 'info')">+</div>
+          <div class="map-ctrl-btn" onclick="showToast('Zoom out coming soon!', 'info')">−</div>
+          <div class="map-ctrl-btn" onclick="showToast('Locating you...', 'info')">📍</div>
+        </div>
+      </div>
+      <div class="map-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--lab)"></div>Labs</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--lib)"></div>Library</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--canteen)"></div>Canteen</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--print)"></div>Printers</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--faculty)"></div>Faculty</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ANALYTICS ===== -->
+  <section id="analytics" class="section">
+    <div class="section-title">📊 Campus Analytics</div>
+    <div class="section-sub">Usage patterns, peak hours, and infrastructure insights</div>
+
+    <div class="analytics-grid mb-5">
+      <div class="analytics-metric">
+        <div class="analytics-metric-val" style="color:var(--lab)">847</div>
+        <div class="analytics-metric-label">Reports submitted today</div>
+      </div>
+      <div class="analytics-metric">
+        <div class="analytics-metric-val" style="color:var(--canteen)">312</div>
+        <div class="analytics-metric-label">Active users right now</div>
+      </div>
+      <div class="analytics-metric">
+        <div class="analytics-metric-val" style="color:var(--faculty)">94%</div>
+        <div class="analytics-metric-label">Report accuracy rate</div>
+      </div>
+    </div>
+
+    <div class="two-col mb-5">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📈 Lab Usage This Week</div>
+        </div>
+        <div class="card-body">
+          <div class="bar-chart" id="lab-usage-chart"><!-- JS --></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🍽️ Canteen Peak Hours</div>
+        </div>
+        <div class="card-body">
+          <div class="bar-chart" id="canteen-peak-chart"><!-- JS --></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🏆 Most Used Resources</div>
+      </div>
+      <div class="card-body">
+        <div id="resource-usage-list" style="display:flex;flex-direction:column;gap:10px"><!-- JS --></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- REPORT MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">📢 Submit a Report</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Resource Type</label>
+        <select class="form-select" id="report-type" onchange="updateReportForm()">
+          <option value="">Select type...</option>
+          <option value="lab">Computer Lab</option>
+          <option value="printer">Printer</option>
+          <option value="library">Library</option>
+          <option value="canteen">Canteen</option>
+          <option value="faculty">Faculty</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Specific Location</label>
+        <select class="form-select" id="report-location">
+          <option>Select resource type first...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Crowd / Occupancy Level</label>
+        <div class="crowd-slider-wrap">
+          <input type="range" class="crowd-slider" min="0" max="100" value="40" oninput="updateSlider(this)">
+          <div class="slider-labels">
+            <span>Empty</span>
+            <span id="slider-val" style="color:var(--lab);font-weight:600">40%</span>
+            <span>Packed</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="report-status">
+          <option value="free">🟢 Free / Available</option>
+          <option value="busy">🟡 Busy / Moderate</option>
+          <option value="full">🔴 Full / Unavailable</option>
+          <option value="issue">⚠️ Issue / Not Working</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (Optional)</label>
+        <textarea class="form-textarea" placeholder="Any extra details... (e.g. 'Back row is free', 'Printer out of paper')"></textarea>
+      </div>
+      <button class="btn btn-primary w-full" style="justify-content:center;padding:12px" onclick="submitReport()">
+        Submit Report (+10 pts 🏆)
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ===== DATA =====
+const labs = [
+  { id:'lab-a', name:'Lab A', block:'CSE Block', floor:'G', total:40, taken:38, reserved:2, status:'full', updated:'2 min ago', dept:'cse' },
+  { id:'lab-b', name:'Lab B', block:'CSE Block', floor:'1', total:40, taken:12, reserved:3, status:'free', updated:'5 min ago', dept:'cse' },
+  { id:'lab-c', name:'Lab C', block:'CSE Block', floor:'1', total:60, taken:28, reserved:5, status:'busy', updated:'1 min ago', dept:'cse' },
+  { id:'lab-d', name:'Lab D', block:'IT Block', floor:'G', total:40, taken:0, reserved:0, status:'free', updated:'8 min ago', dept:'it' },
+  { id:'lab-e', name:'Lab E', block:'IT Block', floor:'1', total:50, taken:45, reserved:2, status:'full', updated:'3 min ago', dept:'it' },
+  { id:'lab-f', name:'Research Lab', block:'IT Block', floor:'2', total:20, taken:8, reserved:0, status:'free', updated:'15 min ago', dept:'it' },
+  { id:'lab-g', name:'Network Lab', block:'CSE Block', floor:'2', total:30, taken:30, reserved:0, status:'full', updated:'4 min ago', dept:'cse' },
+  { id:'lab-h', name:'AI/ML Lab', block:'CSE Block', floor:'2', total:25, taken:10, reserved:2, status:'free', updated:'6 min ago', dept:'cse' },
+];
+
+const printers = [
+  { id:'p1', name:'CSE Block Printer', loc:'CSE Block, Ground Floor', status:'online', queue:3, ink:80, paper:90 },
+  { id:'p2', name:'Library Printer', loc:'Library, Ground Floor', status:'online', queue:1, ink:45, paper:70 },
+  { id:'p3', name:'IT Block Printer', loc:'IT Block, 1st Floor', status:'offline', queue:0, ink:20, paper:60 },
+  { id:'p4', name:'Admin Printer', loc:'Admin Block, 2nd Floor', status:'online', queue:5, ink:65, paper:85 },
+];
+
+const libZones = {
+  1: [
+    { name:'Silent Zone', icon:'🔇', seats:80, taken:55, noise:1 },
+    { name:'Reading Hall', icon:'📖', seats:60, taken:30, noise:2 },
+    { name:'Computer Section', icon:'💻', seats:40, taken:32, noise:2 },
+    { name:'Group Study', icon:'👥', seats:20, taken:8, noise:4 },
+  ],
+  2: [
+    { name:'Reference Section', icon:'📕', seats:50, taken:10, noise:1 },
+    { name:'Study Pods', icon:'🎧', seats:30, taken:18, noise:1 },
+    { name:'Magazine Area', icon:'📰', seats:20, taken:5, noise:3 },
+    { name:'Discussion Rooms', icon:'🗣️', seats:16, taken:12, noise:4 },
+  ],
+  3: [
+    { name:'Research Zone', icon:'🔬', seats:40, taken:8, noise:1 },
+    { name:'Archive Room', icon:'🗄️', seats:20, taken:3, noise:1 },
+    { name:'Project Room A', icon:'📐', seats:12, taken:12, noise:3 },
+    { name:'Project Room B', icon:'📐', seats:12, taken:6, noise:3 },
+  ]
+};
+
+const counters = [
+  { name:'South Indian', status:'open', wait:'3 min', color:'#10b981' },
+  { name:'North Indian', status:'open', wait:'8 min', color:'#f59e0b' },
+  { name:'Chinese', status:'closed', wait:'—', color:'#ef4444' },
+  { name:'Beverages & Snacks', status:'open', wait:'2 min', color:'#10b981' },
+  { name:'Juice Corner', status:'open', wait:'4 min', color:'#10b981' },
+];
+
+const menuItems = [
+  { emoji:'🍛', name:'Dal Rice', price:'₹40', rating:4 },
+  { emoji:'🫓', name:'Masala Dosa', price:'₹30', rating:5 },
+  { emoji:'🍜', name:'Veg Noodles', price:'₹50', rating:3 },
+  { emoji:'☕', name:'Tea/Coffee', price:'₹10', rating:5 },
+  { emoji:'🥗', name:'Veg Thali', price:'₹60', rating:4 },
+  { emoji:'🍕', name:'Veg Pizza', price:'₹80', rating:3 },
+  { emoji:'🥤', name:'Fresh Juice', price:'₹25', rating:4 },
+  { emoji:'🍟', name:'Samosa', price:'₹15', rating:5 },
+];
+
+const faculty = [
+  { name:'Dr. Sharma', dept:'cse', cabin:'CSE-301', status:'available', color:'#00e5ff', initials:'DS', msg:'Open for queries', time:'Available till 4pm' },
+  { name:'Prof. Gupta', dept:'cse', cabin:'CSE-215', status:'in-class', color:'#7c3aed', initials:'PG', msg:'Teaching DSA Lab', time:'Free after 2:30pm' },
+  { name:'Dr. Patel', dept:'it', cabin:'IT-102', status:'away', color:'#f43f5e', initials:'DP', msg:'Out for meeting', time:'Back at 3pm' },
+  { name:'Prof. Singh', dept:'math', cabin:'MATH-108', status:'available', color:'#10b981', initials:'PS', msg:'Available for help', time:'Available now' },
+  { name:'Dr. Verma', dept:'cse', cabin:'CSE-410', status:'available', color:'#f59e0b', initials:'DV', msg:'Research hours', time:'Available till 5pm' },
+  { name:'Prof. Khan', dept:'it', cabin:'IT-201', status:'in-class', color:'#a855f7', initials:'PK', msg:'Taking Networks class', time:'Free after 1pm' },
+  { name:'Dr. Reddy', dept:'math', cabin:'MATH-205', status:'available', color:'#06b6d4', initials:'DR', msg:'Office hours', time:'11am - 1pm' },
+  { name:'Prof. Joshi', dept:'cse', cabin:'CSE-118', status:'away', color:'#84cc16', initials:'PJ', msg:'Not on campus', time:'Tomorrow' },
+  { name:'Dr. Mehta', dept:'it', cabin:'IT-305', status:'available', color:'#fb923c', initials:'DM', msg:'Available', time:'Till 6pm' },
+  { name:'Prof. Nair', dept:'math', cabin:'MATH-112', status:'in-class', color:'#e879f9', initials:'PN', msg:'Calculus lecture', time:'Free after 3pm' },
+  { name:'Dr. Agarwal', dept:'cse', cabin:'CSE-220', status:'available', color:'#34d399', initials:'DA', msg:'Dissertation review', time:'By appointment' },
+  { name:'Prof. Sharma R', dept:'it', cabin:'IT-109', status:'away', color:'#f87171', initials:'SR', msg:'Conference', time:'Thursday' },
+];
+
+const leaderboardData = [
+  { name:'Rahul K.', points:1240, badge:'🔬 Lab Scout', color:'#00e5ff' },
+  { name:'Priya S.', points:980, badge:'📚 Library Guard', color:'#7c3aed' },
+  { name:'Arjun M.', points:856, badge:'🍽️ Canteen Guru', color:'#10b981' },
+  { name:'Sneha P.', points:720, badge:'⭐ Campus Hero', color:'#f59e0b' },
+  { name:'Dev R.', points:612, badge:'🖨️ Print Master', color:'#f43f5e' },
+];
+
+const activityData = [
+  { type:'success', icon:'✅', title:'Lab B is now free', body:'23 seats available · CSE Block', time:'1m ago' },
+  { type:'info', icon:'🖨️', title:'Library printer back online', body:'Queue: 1 person', time:'3m ago' },
+  { type:'warn', icon:'⚠️', title:'Canteen getting crowded', body:'North Indian counter: 8 min wait', time:'5m ago' },
+  { type:'success', icon:'👨‍🏫', title:'Dr. Verma now available', body:'CSE-410 · Open for research queries', time:'7m ago' },
+  { type:'danger', icon:'🔴', title:'Lab A is full', body:'All 40 seats taken · CSE Block', time:'10m ago' },
+];
+
+// ===== RENDER FUNCTIONS =====
+
+function renderLabs(filter = 'all') {
+  const grid = document.getElementById('lab-grid');
+  const filtered = labs.filter(l => {
+    if (filter === 'all') return true;
+    if (['free','busy','full'].includes(filter)) return l.status === filter;
+    return l.dept === filter;
+  });
+
+  grid.innerHTML = filtered.map(lab => {
+    const occ = Math.round((lab.taken / lab.total) * 100);
+    const free = lab.total - lab.taken - lab.reserved;
+    const color = lab.status === 'free' ? 'var(--free)' : lab.status === 'busy' ? 'var(--busy)' : 'var(--full)';
+    const statusLabel = lab.status.charAt(0).toUpperCase() + lab.status.slice(1);
+
+    // Build seat grid (show 20 representative seats)
+    const displaySeats = 20;
+    const takenRatio = lab.taken / lab.total;
+    const reservedRatio = lab.reserved / lab.total;
+    let seats = '';
+    for (let i = 0; i < displaySeats; i++) {
+      const r = i / displaySeats;
+      let cls = r < takenRatio ? 'taken' : r < takenRatio + reservedRatio ? 'reserved' : 'free';
+      seats += `<div class="seat ${cls}"></div>`;
+    }
+
+    return `
+    <div class="lab-card" onclick="showToast('Opening ${lab.name} details...', 'info')">
+      <div class="lab-card-top">
+        <div>
+          <div class="lab-name">${lab.name}</div>
+          <div class="lab-location">📍 ${lab.block} · Floor ${lab.floor}</div>
+        </div>
+        <span class="status-badge ${lab.status}"><span class="status-dot"></span>${statusLabel}</span>
+      </div>
+      <div class="seat-grid">${seats}</div>
+      <div class="lab-stats">
+        <div class="lab-count"><span>${free}</span>/${lab.total} seats free</div>
+        <div class="lab-updated">Updated ${lab.updated}</div>
+      </div>
+      <div class="occ-bar">
+        <div class="occ-fill" style="width:${occ}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderPrinters() {
+  const list = document.getElementById('printer-list');
+  list.innerHTML = printers.map(p => {
+    const waitMins = p.queue * 3;
+    const statusClass = p.status === 'online' ? 'online' : 'offline';
+    return `
+    <div class="printer-item" onclick="showToast('${p.name}: ${p.queue} in queue, ~${waitMins} min wait', 'info')">
+      <div class="printer-icon-wrap">🖨️</div>
+      <div class="printer-info">
+        <div class="printer-name">${p.name}</div>
+        <div class="printer-loc">📍 ${p.loc}</div>
+        <div style="display:flex;gap:8px;margin-top:6px;font-size:0.72rem;color:var(--muted)">
+          <span>🖊️ Ink: ${p.ink}%</span>
+          <span>📄 Paper: ${p.paper}%</span>
+        </div>
+      </div>
+      <div class="printer-queue">
+        <span class="status-badge ${statusClass}" style="margin-bottom:4px"><span class="status-dot"></span>${p.status}</span>
+        <div class="queue-count">${p.queue}</div>
+        <div class="queue-label">in queue</div>
+        <div class="wait-bar"><div class="wait-fill" style="width:${Math.min(p.queue/8*100,100)}%"></div></div>
+        <div style="font-size:0.68rem;color:var(--muted);margin-top:2px">${p.status === 'offline' ? 'Offline' : '~' + waitMins + ' min'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderLibrary(floor = 1) {
+  const grid = document.getElementById('zone-grid');
+  const zones = libZones[floor];
+  grid.innerHTML = zones.map(z => {
+    const occ = Math.round((z.taken / z.seats) * 100);
+    const free = z.seats - z.taken;
+    const color = occ < 50 ? 'var(--free)' : occ < 80 ? 'var(--busy)' : 'var(--full)';
+    const noise = Array(5).fill(0).map((_, i) =>
+      `<div class="noise-bar ${i < z.noise ? 'active' : ''}"></div>`).join('');
+    return `
+    <div class="zone-card" onclick="showToast('${z.name}: ${free} seats available', 'info')">
+      <div class="zone-top">
+        <div class="zone-name">${z.icon} ${z.name}</div>
+        <span class="status-badge ${occ < 50 ? 'free' : occ < 80 ? 'busy' : 'full'}">
+          <span class="status-dot"></span>${occ < 50 ? 'Available' : occ < 80 ? 'Busy' : 'Full'}
+        </span>
+      </div>
+      <div class="zone-occupancy" style="color:${color}">${free}</div>
+      <div class="zone-capacity">of ${z.seats} seats free</div>
+      <div class="occ-bar" style="margin-top:8px">
+        <div class="occ-fill" style="width:${occ}%;background:${color}"></div>
+      </div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-top:8px">Noise level:</div>
+      <div class="noise-level">${noise}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCanteen() {
+  // Counters
+  const list = document.getElementById('counter-list');
+  list.innerHTML = counters.map(c => `
+    <div class="counter-item">
+      <div class="counter-dot" style="background:${c.color}"></div>
+      <div class="counter-name">${c.name}</div>
+      <span class="status-badge ${c.status === 'open' ? 'free' : 'full'}">
+        <span class="status-dot"></span>${c.status}
+      </span>
+      <div class="counter-wait">${c.wait}</div>
+    </div>`).join('');
+
+  // Menu
+  const menu = document.getElementById('menu-grid');
+  menu.innerHTML = menuItems.map(m => {
+    const stars = '⭐'.repeat(m.rating) + '☆'.repeat(5 - m.rating);
+    return `
+    <div class="menu-item" onclick="showToast('${m.name} added to your watchlist!', 'success')">
+      <div class="menu-emoji">${m.emoji}</div>
+      <div class="menu-name">${m.name}</div>
+      <div class="menu-price">${m.price}</div>
+      <div class="stars">${stars}</div>
+    </div>`;
+  }).join('');
+
+  // Canteen timeline
+  renderCanteenTimeline();
+}
+
+function renderCanteenTimeline() {
+  const data = [5, 8, 12, 15, 40, 80, 95, 85, 60, 40, 30, 70, 90, 88, 60, 40, 20, 15, 10, 8];
+  const hours = ['8','9','10','11','12','1','2','3','4','5','6','7','8','9','10','11','12','1','2','3'];
+  const el = document.getElementById('canteen-timeline');
+  if (!el) return;
+  el.innerHTML = data.map((v, i) => {
+    const color = v > 70 ? 'var(--full)' : v > 40 ? 'var(--busy)' : 'var(--canteen)';
+    return `<div class="timeline-bar-wrap">
+      <div class="timeline-bar" style="height:${v}%;background:${color}"></div>
+      <div class="timeline-hour">${hours[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderFaculty(filter = 'all') {
+  const grid = document.getElementById('faculty-grid');
+  const filtered = faculty.filter(f => {
+    if (filter === 'all') return true;
+    if (['available','in-class','away'].includes(filter)) return f.status === filter;
+    return f.dept === filter;
+  });
+
+  grid.innerHTML = filtered.map(f => {
+    const statusConfig = {
+      'available': { label:'Available', cls:'free' },
+      'in-class': { label:'In Class', cls:'busy' },
+      'away': { label:'Away', cls:'unknown' }
+    };
+    const sc = statusConfig[f.status];
+    return `
+    <div class="faculty-card" onclick="showToast('Navigating to ${f.name} — ${f.cabin}', 'info')">
+      <div class="faculty-top">
+        <div class="faculty-avatar" style="background:${f.color}20;color:${f.color};border:1px solid ${f.color}40">${f.initials}</div>
+        <div>
+          <div class="faculty-name">${f.name}</div>
+          <div class="faculty-dept">${f.dept.toUpperCase()} Department</div>
+        </div>
+        <span class="status-badge ${sc.cls}" style="margin-left:auto"><span class="status-dot"></span>${sc.label}</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">💬 "${f.msg}"</div>
+      <div class="faculty-status-row">
+        <span class="faculty-cabin">🚪 ${f.cabin}</span>
+        <span class="faculty-time">🕐 ${f.time}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderLeaderboard() {
+  const el = document.getElementById('leaderboard');
+  const rankEmojis = ['🥇', '🥈', '🥉', '4', '5'];
+  const rankClass = ['gold', 'silver', 'bronze', '', ''];
+  el.innerHTML = leaderboardData.map((u, i) => `
+    <div class="lb-item">
+      <div class="lb-rank ${rankClass[i]}">${rankEmojis[i]}</div>
+      <div class="lb-avatar" style="background:${u.color}20;color:${u.color}">${u.name[0]}</div>
+      <div>
+        <div class="lb-name">${u.name}</div>
+        <div class="lb-badge">${u.badge}</div>
+      </div>
+      <div class="lb-points">${u.points}pts</div>
+    </div>`).join('');
+}
+
+function renderActivityFeed() {
+  const el = document.getElementById('activity-feed');
+  el.innerHTML = activityData.map(a => `
+    <div class="notif-item ${a.type}">
+      <div class="notif-icon">${a.icon}</div>
+      <div class="notif-content">
+        <div class="notif-title">${a.title}</div>
+        <div class="notif-body">${a.body}</div>
+      </div>
+      <div class="notif-time">${a.time}</div>
+    </div>`).join('');
+}
+
+function renderPrintTimeChart() {
+  const el = document.getElementById('print-time-chart');
+  if (!el) return;
+  const data = [1, 2, 5, 8, 6, 4, 7, 9, 8, 5, 3, 2, 1, 1];
+  const hours = ['8a','9a','10a','11a','12p','1p','2p','3p','4p','5p','6p','7p','8p','9p'];
+  const max = Math.max(...data);
+  el.innerHTML = data.map((v, i) => {
+    const h = Math.round((v / max) * 100);
+    const color = v > 6 ? 'var(--full)' : v > 3 ? 'var(--busy)' : 'var(--print)';
+    return `<div class="bar-item">
+      <div class="bar-fill" style="height:${h}%;background:${color}"></div>
+      <div class="bar-lbl">${hours[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderLibTimeline() {
+  const el = document.getElementById('lib-timeline');
+  if (!el) return;
+  const data = [10, 15, 30, 50, 65, 80, 85, 70, 75, 80, 60, 40, 30, 20];
+  const hours = ['8','9','10','11','12','1','2','3','4','5','6','7','8','9'];
+  el.innerHTML = data.map((v, i) => {
+    const color = v > 70 ? 'var(--full)' : v > 45 ? 'var(--busy)' : 'var(--lib)';
+    return `<div class="timeline-bar-wrap">
+      <div class="timeline-bar" style="height:${v}%;background:${color}"></div>
+      <div class="timeline-hour">${hours[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAnalytics() {
+  // Lab usage
+  const labEl = document.getElementById('lab-usage-chart');
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+  const labData = [75, 85, 60, 90, 80, 30];
+  if (labEl) {
+    labEl.innerHTML = labData.map((v, i) => `
+      <div class="bar-item">
+        <div class="bar-fill" style="height:${v}%;background:var(--lab)"></div>
+        <div class="bar-lbl">${days[i]}</div>
+      </div>`).join('');
+  }
+
+  // Canteen peak
+  const canEl = document.getElementById('canteen-peak-chart');
+  const peakData = [20, 30, 40, 60, 95, 90, 80, 50, 40, 30, 20, 15];
+  const peakHours = ['8','9','10','11','12','1','2','3','4','5','6','7'];
+  if (canEl) {
+    canEl.innerHTML = peakData.map((v, i) => {
+      const color = v > 70 ? 'var(--full)' : v > 40 ? 'var(--busy)' : 'var(--canteen)';
+      return `<div class="bar-item">
+        <div class="bar-fill" style="height:${v}%;background:${color}"></div>
+        <div class="bar-lbl">${peakHours[i]}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Resource usage list
+  const resList = document.getElementById('resource-usage-list');
+  const resources = [
+    { name:'Lab B (CSE Block)', usage:92, color:'var(--lab)' },
+    { name:'Library Silent Zone', usage:85, color:'var(--lib)' },
+    { name:'Main Canteen', usage:78, color:'var(--canteen)' },
+    { name:'CSE Block Printer', usage:72, color:'var(--print)' },
+    { name:'AI/ML Lab', usage:65, color:'#a855f7' },
+  ];
+  if (resList) {
+    resList.innerHTML = resources.map(r => `
+      <div>
+        <div class="flex items-center justify-between mb-4" style="margin-bottom:4px">
+          <span class="text-sm">${r.name}</span>
+          <span style="font-size:0.78rem;font-weight:600;color:${r.color}">${r.usage}%</span>
+        </div>
+        <div class="occ-bar">
+          <div class="occ-fill" style="width:${r.usage}%;background:${r.color}"></div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ===== INTERACTIONS =====
+
+function showSection(id, tabEl) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (tabEl) tabEl.classList.add('active');
+
+  // Render on demand
+  if (id === 'labs') renderLabs();
+  if (id === 'printers') { renderPrinters(); renderPrintTimeChart(); }
+  if (id === 'library') { renderLibrary(1); renderLibTimeline(); }
+  if (id === 'canteen') renderCanteen();
+  if (id === 'faculty') renderFaculty();
+  if (id === 'analytics') renderAnalytics();
+}
+
+function filterLabs(filter, btn) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderLabs(filter);
+}
+
+function filterFaculty(filter, btn) {
+  document.querySelectorAll('#faculty ~ * .filter-chip, .section.active .filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderFaculty(filter);
+}
+
+function switchFloor(floor, btn) {
+  document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLibrary(floor);
+}
+
+function mapClick(name) {
+  showToast(`📍 ${name} — Click to see live status`, 'info');
+}
+
+function quickSearch(val) {
+  const res = document.getElementById('quick-results');
+  if (!val.trim()) { res.innerHTML = ''; return; }
+  const v = val.toLowerCase();
+  const results = [
+    ...labs.filter(l => l.name.toLowerCase().includes(v) || l.block.toLowerCase().includes(v))
+      .map(l => `<div class="notif-item ${l.status}" style="cursor:pointer" onclick="showSection('labs',document.querySelectorAll('.nav-tab')[1]);showToast('Showing ${l.name}', 'info')">
+        <div class="notif-icon">🔬</div>
+        <div class="notif-content"><div class="notif-title">${l.name}</div><div class="notif-body">${l.block} · ${l.total - l.taken} seats free</div></div>
+      </div>`),
+    ...faculty.filter(f => f.name.toLowerCase().includes(v) || f.dept.toLowerCase().includes(v))
+      .map(f => `<div class="notif-item ${f.status === 'available' ? 'success' : f.status === 'away' ? 'danger' : 'info'}" style="cursor:pointer">
+        <div class="notif-icon">👨‍🏫</div>
+        <div class="notif-content"><div class="notif-title">${f.name}</div><div class="notif-body">${f.cabin} · ${f.status}</div></div>
+      </div>`),
+  ].slice(0, 4);
+  res.innerHTML = results.length
+    ? `<div style="display:flex;flex-direction:column;gap:6px">${results.join('')}</div>`
+    : `<div style="text-align:center;color:var(--muted);font-size:0.82rem;padding:16px">No results for "${val}"</div>`;
+}
+
+function searchFaculty(val) {
+  if (!val.trim()) { renderFaculty(); return; }
+  const v = val.toLowerCase();
+  const grid = document.getElementById('faculty-grid');
+  const filtered = faculty.filter(f =>
+    f.name.toLowerCase().includes(v) ||
+    f.dept.toLowerCase().includes(v) ||
+    f.cabin.toLowerCase().includes(v)
+  );
+  renderFaculty('all');
+  // Re-render filtered
+  const sc = { 'available': { label:'Available', cls:'free' }, 'in-class': { label:'In Class', cls:'busy' }, 'away': { label:'Away', cls:'unknown' } };
+  grid.innerHTML = filtered.map(f => {
+    const s = sc[f.status];
+    return `<div class="faculty-card" onclick="showToast('Navigating to ${f.name}', 'info')">
+      <div class="faculty-top">
+        <div class="faculty-avatar" style="background:${f.color}20;color:${f.color};border:1px solid ${f.color}40">${f.initials}</div>
+        <div><div class="faculty-name">${f.name}</div><div class="faculty-dept">${f.dept.toUpperCase()} Department</div></div>
+        <span class="status-badge ${s.cls}" style="margin-left:auto"><span class="status-dot"></span>${s.label}</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--muted);margin-bottom:10px">💬 "${f.msg}"</div>
+      <div class="faculty-status-row"><span class="faculty-cabin">🚪 ${f.cabin}</span><span class="faculty-time">🕐 ${f.time}</span></div>
+    </div>`;
+  }).join('');
+}
+
+// Modal
+function openModal() {
+  document.getElementById('modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+
+document.getElementById('modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+function updateReportForm() {
+  const type = document.getElementById('report-type').value;
+  const loc = document.getElementById('report-location');
+  const options = {
+    lab: ['Lab A — CSE Block', 'Lab B — CSE Block', 'Lab C — CSE Block', 'Lab D — IT Block', 'Lab E — IT Block', 'Research Lab', 'Network Lab', 'AI/ML Lab'],
+    printer: ['CSE Block Printer', 'Library Printer', 'IT Block Printer', 'Admin Printer'],
+    library: ['Silent Zone', 'Reading Hall', 'Computer Section', 'Group Study', 'Reference Section'],
+    canteen: ['Main Canteen', 'South Indian Counter', 'North Indian Counter', 'Beverages'],
+    faculty: faculty.map(f => f.name + ' — ' + f.cabin),
+  };
+  if (type && options[type]) {
+    loc.innerHTML = options[type].map(o => `<option>${o}</option>`).join('');
+  }
+}
+
+function updateSlider(el) {
+  document.getElementById('slider-val').textContent = el.value + '%';
+}
+
+function submitReport() {
+  const type = document.getElementById('report-type').value;
+  if (!type) { showToast('Please select a resource type', 'warn'); return; }
+  closeModal();
+  showToast('✅ Report submitted! +10 points earned 🏆', 'success');
+  // Add to activity feed
+  activityData.unshift({
+    type: 'success', icon: '📢',
+    title: 'New report submitted',
+    body: `${document.getElementById('report-location').value}`,
+    time: 'Just now'
+  });
+  renderActivityFeed();
+}
+
+function addAlert() {
+  showToast('🔔 Alert preferences coming soon!', 'info');
+}
+
+// Toast system
+function showToast(msg, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const colors = { info: 'var(--lab)', success: 'var(--free)', warn: 'var(--busy)', danger: 'var(--full)' };
+  const icons = { info: 'ℹ️', success: '✅', warn: '⚠️', danger: '❌' };
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.borderLeft = `3px solid ${colors[type]}`;
+  toast.innerHTML = `<span>${icons[type]}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// ===== LIVE SIMULATION =====
+function simulateLiveUpdates() {
+  setInterval(() => {
+    // Randomly update a lab's occupancy
+    const lab = labs[Math.floor(Math.random() * labs.length)];
+    const delta = Math.floor(Math.random() * 5) - 2;
+    lab.taken = Math.max(0, Math.min(lab.total, lab.taken + delta));
+    const occ = lab.taken / lab.total;
+    lab.status = occ > 0.85 ? 'full' : occ > 0.5 ? 'busy' : 'free';
+    lab.updated = 'just now';
+
+    // Update hero count
+    const freeLabs = labs.filter(l => l.status === 'free').length;
+    const el = document.getElementById('lab-free-count');
+    if (el) el.textContent = freeLabs;
+
+    // Update nav badge
+    const labTab = document.querySelectorAll('.nav-tab')[1];
+    const badge = labTab.querySelector('.tab-badge');
+    if (badge) badge.textContent = `${freeLabs} Free`;
+
+    // Re-render if on labs section
+    if (document.getElementById('labs').classList.contains('active')) renderLabs();
+
+    // Animate crowd ring
+    const crowdVal = 30 + Math.floor(Math.random() * 40);
+    const circle = document.getElementById('crowd-circle');
+    if (circle) {
+      const circumference = 251.3;
+      const offset = circumference - (crowdVal / 100) * circumference;
+      circle.style.strokeDashoffset = offset;
+      const pctEl = document.getElementById('crowd-pct');
+      if (pctEl) pctEl.textContent = crowdVal + '%';
+    }
+  }, 4000);
+}
+
+// ===== INIT =====
+renderActivityFeed();
+renderLeaderboard();
+simulateLiveUpdates();
+</script>
+</body>
+</html>
